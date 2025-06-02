@@ -68,7 +68,7 @@ app.frame("/", (c) => {
   });
 });
 
-devtools(app, { serveStatic });
+devtools(app, { assetsPath: "/.frog" });
 
 export const GET = handle(app);
 export const POST = handle(app);

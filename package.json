@@ -7,7 +7,8 @@
     "deploy": "vercel",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "copy-static": "cp -r ./node_modules/frog/_lib/ui/.frog ./public/.frog"
   },
   "dependencies": {
     "frog": "latest",
