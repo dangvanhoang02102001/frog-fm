@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "deploy": "vercel",
-    "build": "next build",
+   "build": "npm run copy-static && next build",
     "start": "next start",
     "lint": "next lint",
     "copy-static": "cp -r ./node_modules/frog/_lib/ui/.frog ./public/.frog"
