@@ -2,47 +2,46 @@
 
 import { Button, Frog, TextInput } from "frog";
 import { devtools } from "frog/dev";
-// import { neynar } from 'frog/hubs'
 import { handle } from "frog/next";
 import { serveStatic } from "frog/serve-static";
 
 const app = new Frog({
   assetsPath: "/",
   basePath: "/api",
-  // Supply a Hub to enable frame verification.
-  // hub: neynar({ apiKey: 'NEYNAR_FROG_FM' })
   title: "Frog Frame",
+  // Add these for better error handling
+  // browserLocation: "/",
+  imageOptions: {
+    width: 1200,
+    height: 630,
+  },
 });
 
-// Uncomment to use Edge Runtime
-// export const runtime = 'edge'
+console.log("app: ", app);
+
+// app.hono.get("/test-hono", (c) => {
+//   console.log("Hono GET /test-hono inside /api reached!");
+//   return c.text("Hono says hi from /api/test-hono");
+// });
+
+// console.log("--- Hono Routes ---");
+// console.dir(app.hono.routes, { depth: null });
+// console.log("--- End Hono Routes ---");
 
 app.frame("/", (c) => {
-  // Log chi tiết context và các giá trị nhận được
-  console.log("--- Request Context (c) ---");
-  // Cẩn thận khi log toàn bộ object `c` vì nó có thể rất lớn, đặc biệt là c.req.
-  // Log các thuộc tính quan trọng:
-  console.log("c:", c);
-  console.log("c.url:", c.url);
-  console.log("c.buttonValue:", c.buttonValue); // Giá trị của nút được nhấn (nếu có)
-  console.log("c.inputText:", c.inputText); // Giá trị từ TextInput (nếu có)
-  console.log("c.status:", c.status); // Trạng thái của frame ('initial' hoặc 'response')
-  console.log("c.verified:", c.verified); // Trạng thái xác thực frame (nếu bạn cấu hình Hub)
-  // Bạn có thể log thêm các phần khác của `c` nếu cần, ví dụ:
-  // console.log("c.frameData:", c.frameData); // Dữ liệu frame đã được parse (nếu là POST request)
-  // console.log("c.previousState:", c.previousState); // State trước đó (nếu dùng)
-
-  const { buttonValue, inputText, status } = c;
-  console.log("Extracted buttonValue from c:", buttonValue);
-  console.log("Extracted inputText from c:", inputText);
-  console.log("Extracted status from c:", status);
-
-  const fruit = inputText || buttonValue;
-  console.log("Calculated fruit (inputText || buttonValue):", fruit);
-
   try {
-    // Tạo JSX cho image
-    const imageJsx = (
+    const { buttonValue, inputText, status } = c;
+    console.log(
+      "buttonValue, inputText, status: ",
+      buttonValue,
+      inputText,
+      status
+    );
+    // More defensive handling of fruit value
+    const fruit = inputText?.trim() || buttonValue || "";
+
+    // Create the response image
+    const imageElement = (
       <div
         style={{
           alignItems: "center",
@@ -73,57 +72,49 @@ app.frame("/", (c) => {
           }}
         >
           {status === "response"
-            ? `Nice choice.${fruit ? ` ${fruit.toUpperCase()}!!` : ""}`
+            ? `Nice choice.${fruit ? ` ${fruit.toUpperCase()}!` : ""}`
             : "Welcome!"}
         </div>
       </div>
     );
-    // Optional: Log cấu trúc của JSX nếu bạn nghi ngờ có vấn đề ở đây,
-    // tuy nhiên JSX phức tạp có thể khó log dưới dạng JSON.
-    // console.log("Generated imageJsx structure (simplified):", {
-    //   background: status === "response" ? "gradient" : "black",
-    //   text: status === "response" ? `Nice choice with ${fruit}` : "Welcome!",
-    // });
 
-    // Tạo mảng các intents (buttons, text input)
-    // Sử dụng .filter(Boolean) để loại bỏ các giá trị falsy (như `false` khi `status !== 'response'`)
-    // ra khỏi mảng intents, đảm bảo mảng chỉ chứa các component hợp lệ.
-    const intentsArray = [
+    // Create intents array - simpler approach
+    const intents = [
       <TextInput placeholder="Enter custom fruit..." />,
       <Button value="apples">Apples</Button>,
       <Button value="oranges">Oranges</Button>,
       <Button value="bananas">Bananas</Button>,
-      status === "response" && <Button.Reset>Reset</Button.Reset>,
-    ].filter(Boolean); // Lọc bỏ các giá trị false (ví dụ khi Button.Reset không được thêm)
+    ];
 
-    // console.log("Generated intentsArray:", intentsArray.map(intent => intent?.tag || String(intent)));
+    // Only add reset button if we have a response
+    if (status === "response") {
+      intents.push(<Button.Reset>Reset</Button.Reset>);
+    }
 
-    console.log("--- Attempting to send response with c.res() ---");
-    // Trả về response của frame
     return c.res({
-      image: imageJsx,
-      intents: intentsArray,
+      image: imageElement,
+      intents: intents,
     });
-  } catch (error: any) {
-    // Bắt lỗi cụ thể nếu có trong quá trình tạo image/intents
-    console.error("!!! ERROR within app.frame handler !!!");
-    console.error("Error message:", error.message);
-    console.error("Error stack:", error.stack);
-    // Trả về một frame lỗi đơn giản để người dùng biết có sự cố
+  } catch (error) {
+    console.error("Frame handler error:", error);
+
+    // Return a simple error frame
     return c.res({
       image: (
         <div
           style={{
-            color: "red",
+            alignItems: "center",
+            background: "red",
+            color: "white",
             display: "flex",
             fontSize: 40,
-            alignItems: "center",
-            justifyContent: "center",
             height: "100%",
-            background: "white",
+            justifyContent: "center",
+            textAlign: "center",
+            width: "100%",
           }}
         >
-          An error occurred while processing the frame. Check server logs.
+          Something went wrong!
         </div>
       ),
       intents: [<Button.Reset>Try Again</Button.Reset>],
@@ -131,24 +122,86 @@ app.frame("/", (c) => {
   }
 });
 
-// Khởi tạo devtools
-// devtools(app, { assetsPath: "/.frog" }); // Bạn có thể dùng dòng này nếu `copy-static` đã chạy và Next.js phục vụ file từ `public`
-devtools(app, { assetsPath: "/.frog", serveStatic }); // Hoặc dùng dòng này để Frog tự phục vụ file tĩnh cho devtools
+app.frame("/main", (c) => {
+  console.log("MAIN FRAME HIT at /main", c.req.path);
+  const { buttonValue, inputText, status } = c;
+  const fruit = inputText?.trim() || buttonValue || "";
 
-// Export handlers cho Next.js
+  let intents = [];
+  if (status === "response") {
+    // console.log(
+    //   "Action received, testing Button.Reset ALONE. ButtonValue:",
+    //   buttonValue
+    // );
+    // intents = [<Button.Reset>Reset</Button.Reset>];
+    console.log(
+      "Action received, testing a different button. ButtonValue:",
+      buttonValue
+    );
+    intents = [<Button value="nextAction">Next Action</Button>];
+  } else {
+    // 'initial' status
+    intents = [
+      <Button value="apples">Apples</Button>, // A single, simple button
+    ];
+  }
+
+  // Or even simpler for the first test:
+  // const intents = [<Button value="test">Test</Button>];
+
+  return c.res({
+    /* Your image JSX, make sure it updates based on 'fruit' and 'status' */
+    image: (
+      <div
+        style={{
+          color: "white",
+          display: "flex",
+          fontSize: 60,
+          background: "teal",
+          height: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+          flexDirection: "column",
+        }}
+      >
+        <div>Frame: /main</div>
+        <div>Status: {status}</div>
+        {fruit && <div>Fruit: {fruit.toUpperCase()}</div>}
+        {status === "response" && buttonValue && (
+          <div>Clicked: {buttonValue}</div>
+        )}
+      </div>
+    ),
+    intents: intents,
+  });
+});
+
+app.frame("/personal", (c) => {
+  console.log("HELLO FRAME HIT", c.req.path);
+  return c.res({
+    image: (
+      <div
+        style={{
+          color: "black",
+          display: "flex",
+          fontSize: 60,
+          background: "blue",
+          height: "100%",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        Hoang Dang
+      </div>
+    ),
+    intents: [<Button>Back to Root</Button>],
+  });
+});
+
+// Conditional devtools setup
+if (process.env.NODE_ENV === "development") {
+  devtools(app, { serveStatic });
+}
+
 export const GET = handle(app);
 export const POST = handle(app);
-
-// NOTE: That if you are using the devtools and enable Edge Runtime, you will need to copy the devtools
-// static assets to the public folder. You can do this by adding a script to your package.json:
-// ```json
-// {
-//   scripts: {
-//     "copy-static": "cp -r ./node_modules/frog/_lib/ui/.frog ./public/.frog"
-//   }
-// }
-// ```
-// Next, you'll want to set up the devtools to use the correct assets path:
-// ```ts
-// devtools(app, { assetsPath: '/.frog' })
-// ```

@@ -1,8 +1,8 @@
-import { getFrameMetadata } from "frog/web";
 import type { Metadata } from "next";
 import Image from "next/image";
 
 import styles from "./page.module.css";
+import { getFrameMetadata } from "frog/next";
 
 export async function generateMetadata(): Promise<Metadata> {
   const frameTags = await getFrameMetadata(
